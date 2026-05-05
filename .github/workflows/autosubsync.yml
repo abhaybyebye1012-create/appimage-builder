@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04  # We use an older runner to ensure maximum compatibility
+    runs-on: ubuntu-latest
 
     steps:
       - name: Install Dependencies
