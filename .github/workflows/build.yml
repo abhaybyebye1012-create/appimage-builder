@@ -19,17 +19,10 @@ jobs:
 
       - name: Download Latest jmkvpropedit JAR
         run: |
-          # Try to get the URL via API
-          LATEST_URL=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/BrunoReX/jmkvpropedit/releases/latest | jq -r '.assets[] | select(.name | test(".*\\.[jJ][aA][rR]$")) | .browser_download_url' | head -n 1)
-          
-          # If API fails to find it, use a direct fallback to the known current version
-          if [ -z "$LATEST_URL" ] || [ "$LATEST_URL" == "null" ]; then
-            echo "API lookup failed, using fallback URL"
-            LATEST_URL="https://github.com/BrunoReX/jmkvpropedit/releases/download/v1.5.2/jmkvpropedit.jar"
-          fi
-          
-          echo "Downloading from: $LATEST_URL"
-          wget "$LATEST_URL" -O AppDir/jmkvpropedit.jar
+          # Use the GitHub CLI to download the asset ending in .jar from the latest release
+          gh release download --repo BrunoReX/jmkvpropedit --pattern "*.jar" --output AppDir/jmkvpropedit.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Download Portable Linux Java (JRE 17)
         run: |
