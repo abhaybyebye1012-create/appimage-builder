@@ -1,0 +1,53 @@
+name: Rebuild AutoSubSync for Compatibility
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04  # We use an older runner to ensure maximum compatibility
+
+    steps:
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2 wget
+          
+      - name: Create AppDir Structure
+        run: mkdir -p AppDir/usr/bin AppDir/usr/lib
+
+      - name: Extract Original AppImage
+        run: |
+          wget "https://github.com/denizsafak/AutoSubSync/releases/download/v6.3/AutoSubSync-linux-amd64.AppImage" -O original.AppImage
+          chmod +x original.AppImage
+          ./original.AppImage --appimage-extract
+          
+          # Move extracted contents to our AppDir
+          cp -r squashfs-root/* AppDir/
+          rm -rf squashfs-root original.AppImage
+
+      - name: Fix AppRun and Libraries
+        run: |
+          # We ensure the AppRun correctly points to the binary
+          # and uses the internal library path
+          cat << 'EOF' > AppDir/AppRun
+          #!/bin/bash
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          export LD_LIBRARY_PATH="$HERE/usr/lib:$LD_LIBRARY_PATH"
+          export PATH="$HERE/usr/bin:$PATH"
+          # Find the main executable (usually same name as app)
+          exec "$HERE/AutoSubSync" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+
+      - name: Compile Compatible AppImage
+        run: |
+          wget "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool-x86_64.AppImage
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage AppDir AutoSubSync-Compatible-x86_64.AppImage
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoSubSync-Fixed
+          path: AutoSubSync-Compatible-x86_64.AppImage
