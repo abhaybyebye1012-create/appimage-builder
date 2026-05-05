@@ -45,24 +45,26 @@ jobs:
 
       - name: Bundle mkvpropedit (from MKVToolNix)
         run: |
-          # 1. Get the direct URL for the latest x86_64 AppImage
-          # This looks for the first link ending in -x86_64.AppImage that isn't a "zsync" file
-          MKV_URL=$(curl -s https://mkvtoolnix.download/appimage/ | grep -oP 'href="\K[^"]*x86_64\.AppImage(?!"|.*zsync)' | head -n 1)
+          # 1. Download a known stable version of MKVToolNix AppImage
+          # Using the direct link to bypass the scraper error
+          wget "https://mkvtoolnix.download/appimage/MKVToolNix_GUI-98.0-x86_64.AppImage" -O mkvtoolnix.AppImage
           
-          echo "Downloading MKVToolNix from: https://mkvtoolnix.download/appimage/$MKV_URL"
-          
-          # 2. Download the ACTUAL file (not the html page)
-          wget "https://mkvtoolnix.download/appimage/$MKV_URL" -O mkvtoolnix.AppImage
-          
-          # 3. Extract it
+          # 2. Extract the AppImage
           chmod +x mkvtoolnix.AppImage
+          
+          # We use --appimage-extract to pull out the binaries we need
           ./mkvtoolnix.AppImage --appimage-extract
           
-          # 4. Copy the binary and its required libraries into our AppDir
+          # 3. Copy the binary and its required libraries into our AppDir
           cp squashfs-root/usr/bin/mkvpropedit AppDir/usr/bin/
-          cp -P squashfs-root/usr/lib/*.so* AppDir/usr/lib/ || true
           
-          # Clean up
+          # Copying libraries to ensure it runs on older Linux versions
+          # We use -P to preserve symlinks
+          cp -P squashfs-root/usr/lib/libmkv* AppDir/usr/lib/ || true
+          cp -P squashfs-root/usr/lib/libboost* AppDir/usr/lib/ || true
+          cp -P squashfs-root/usr/lib/libfmt* AppDir/usr/lib/ || true
+          
+          # Clean up the extraction folder to save space
           rm -rf squashfs-root mkvtoolnix.AppImage
 
       - name: Create Execution Script (AppRun)
