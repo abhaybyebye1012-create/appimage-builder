@@ -45,26 +45,21 @@ jobs:
 
       - name: Bundle mkvpropedit (from MKVToolNix)
         run: |
-          # 1. Download a known stable version of MKVToolNix AppImage
-          # Using the direct link to bypass the scraper error
+          # 1. Download MKVToolNix
           wget "https://mkvtoolnix.download/appimage/MKVToolNix_GUI-98.0-x86_64.AppImage" -O mkvtoolnix.AppImage
-          
-          # 2. Extract the AppImage
           chmod +x mkvtoolnix.AppImage
           
-          # We use --appimage-extract to pull out the binaries we need
+          # 2. Extract everything
           ./mkvtoolnix.AppImage --appimage-extract
           
-          # 3. Copy the binary and its required libraries into our AppDir
+          # 3. Copy the binary
           cp squashfs-root/usr/bin/mkvpropedit AppDir/usr/bin/
           
-          # Copying libraries to ensure it runs on older Linux versions
-          # We use -P to preserve symlinks
-          cp -P squashfs-root/usr/lib/libmkv* AppDir/usr/lib/ || true
-          cp -P squashfs-root/usr/lib/libboost* AppDir/usr/lib/ || true
-          cp -P squashfs-root/usr/lib/libfmt* AppDir/usr/lib/ || true
+          # 4. Copy ALL libraries (including Qt6, Boost, etc.)
+          # This ensures the AppImage is truly standalone
+          cp -P squashfs-root/usr/lib/*.so* AppDir/usr/lib/ || true
           
-          # Clean up the extraction folder to save space
+          # 5. Clean up
           rm -rf squashfs-root mkvtoolnix.AppImage
 
       - name: Create Execution Script (AppRun)
