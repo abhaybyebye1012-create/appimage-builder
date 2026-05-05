@@ -1,0 +1,26 @@
+app: ffsubsync-gui
+binpatch: true
+
+ingredients:
+  dist: focal
+  sources:
+    - sourceline: 'deb http://archive.ubuntu.com/ubuntu/ focal main universe'
+  packages:
+    - ffmpeg
+    - libpulse0
+    - libxcb-xinerama0
+    - libxcb-icccm4
+    - libxcb-image0
+    - libxcb-keysyms1
+    - libxcb-render-util0
+
+script:
+  # Move the PyInstaller binary into the AppImage structure
+  - cp ../dist/gui ./usr/bin/ffsubsync-gui
+  # Create a desktop file so it shows up in menus
+  - echo "[Desktop Entry]" > ffsubsync-gui.desktop
+  - echo "Name=FFsubsync GUI" >> ffsubsync-gui.desktop
+  - echo "Exec=ffsubsync-gui" >> ffsubsync-gui.desktop
+  - echo "Icon=utilities-terminal" >> ffsubsync-gui.desktop
+  - echo "Type=Application" >> ffsubsync-gui.desktop
+  - echo "Categories=AudioVideo;" >> ffsubsync-gui.desktop
