@@ -19,8 +19,12 @@ jobs:
 
       - name: Download Latest jmkvpropedit JAR
         run: |
-          # Use the GitHub CLI to download the asset ending in .jar from the latest release
-          gh release download --repo BrunoReX/jmkvpropedit --pattern "*.jar" --output AppDir/jmkvpropedit.jar
+          # List all files in the release for debugging
+          echo "Files found in latest release:"
+          gh release view --repo BrunoReX/jmkvpropedit --json assets --template '{{range .assets}}{{.name}}{{"\n"}}{{end}}'
+          
+          # Download the specific jmkvpropedit jar, avoiding "sources" or "plain" jars if they exist
+          gh release download --repo BrunoReX/jmkvpropedit --pattern "jmkvpropedit*.jar" --output AppDir/jmkvpropedit.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
