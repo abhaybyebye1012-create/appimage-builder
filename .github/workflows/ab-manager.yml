@@ -22,17 +22,28 @@ jobs:
 
       - name: Download Latest AB Download Manager
         run: |
-          # Get the download URL for the Linux x64 zip/tar.gz
-          LATEST_URL=$(curl -s https://api.github.com/repos/amir1376/ab-download-manager/releases/latest | jq -r '.assets[] | select(.name | contains("linux-x64") and endswith(".tar.gz")) | .browser_download_url')
-          wget "$LATEST_URL" -O ab-manager.tar.gz
+          # 1. Download the asset that matches Linux x64 and is a tar.gz
+          # We use a broader pattern to ensure we catch it regardless of prefix
+          gh release download --repo amir1376/ab-download-manager --pattern "*linux*x64*.tar.gz" --output ab-manager.tar.gz
           
-          # Extract it
+          # 2. Extract it
           mkdir temp_extracted
           tar -xzf ab-manager.tar.gz -C temp_extracted --strip-components=1
           
-          # Move the contents to our AppDir
+          # 3. Move the contents to our AppDir
           cp -r temp_extracted/* AppDir/
+          
+          # 4. Cleanup
           rm -rf temp_extracted ab-manager.tar.gz
+          
+          # 5. Verification: Ensure the binary actually exists where we expect
+          if [ ! -f AppDir/bin/ab-download-manager ]; then
+            echo "Error: Binary not found in AppDir/bin/"
+            ls -R AppDir
+            exit 1
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create AppRun Script
         run: |
