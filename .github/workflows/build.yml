@@ -17,14 +17,24 @@ jobs:
         run: |
           mkdir -p AppDir/usr/bin AppDir/usr/lib AppDir/jre
 
-      - name: Download Latest jmkvpropedit JAR
+      - name: Download and Extract jmkvpropedit
         run: |
-          # List all files in the release for debugging
-          echo "Files found in latest release:"
-          gh release view --repo BrunoReX/jmkvpropedit --json assets --template '{{range .assets}}{{.name}}{{"\n"}}{{end}}'
+          # 1. Download the zip file from the latest release
+          gh release download --repo BrunoReX/jmkvpropedit --pattern "*.zip" --output release.zip
           
-          # Download the specific jmkvpropedit jar, avoiding "sources" or "plain" jars if they exist
-          gh release download --repo BrunoReX/jmkvpropedit --pattern "jmkvpropedit*.jar" --output AppDir/jmkvpropedit.jar
+          # 2. Unzip it into a temporary folder
+          unzip release.zip -d temp_extracted
+          
+          # 3. Find the .jar file inside that folder and move it to AppDir
+          # We use find because the jar might be inside a subfolder in the zip
+          find temp_extracted -name "*.jar" -exec cp {} AppDir/jmkvpropedit.jar \;
+          
+          # 4. Cleanup
+          rm release.zip
+          rm -rf temp_extracted
+          
+          # 5. Verify success
+          if [ ! -f AppDir/jmkvpropedit.jar ]; then echo "Error: JAR file not found in zip!"; exit 1; fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
