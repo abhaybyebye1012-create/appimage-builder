@@ -19,7 +19,7 @@ jobs:
 
       - name: Download Latest jmkvpropedit JAR
         run: |
-          LATEST_URL=$(curl -s https://api.github.com/repos/BrunoReX/jmkvpropedit/releases/latest | jq -r '.assets[] | select(.name | endswith(".jar")) | .browser_download_url')
+          LATEST_URL=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/BrunoReX/jmkvpropedit/releases/latest | jq -r '.assets[] | select(.name | endswith(".jar")) | .browser_download_url')
           wget "$LATEST_URL" -O AppDir/jmkvpropedit.jar
 
       - name: Download Portable Linux Java (JRE 17)
