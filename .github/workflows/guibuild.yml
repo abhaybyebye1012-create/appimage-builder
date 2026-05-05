@@ -1,0 +1,37 @@
+name: Create Independent AppImage
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libfuse2
+          pip install ffsubsync Gooey pyinstaller
+
+      - name: Create Executable with PyInstaller
+        run: |
+          # --collect-all ensures all ffsubsync dependencies are grabbed
+          pyinstaller --noconsole --onefile --collect-all ffsubsync gui.py
+
+      - name: Build AppImage
+        uses: AppImageCommunity/pkg2appimage-action@master
+        with:
+          recipe: recipe.yml
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ffsubsync-gui-appimage
+          path: out/*.AppImage
