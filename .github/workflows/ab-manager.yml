@@ -1,0 +1,78 @@
+name: Build AB Download Manager AppImage
+
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2 jq curl wget tar
+
+      - name: Create AppDir Structure
+        run: |
+          mkdir -p AppDir/usr/bin AppDir/usr/lib
+
+      - name: Download Latest AB Download Manager
+        run: |
+          # Get the download URL for the Linux x64 zip/tar.gz
+          LATEST_URL=$(curl -s https://api.github.com/repos/amir1376/ab-download-manager/releases/latest | jq -r '.assets[] | select(.name | contains("linux-x64") and endswith(".tar.gz")) | .browser_download_url')
+          wget "$LATEST_URL" -O ab-manager.tar.gz
+          
+          # Extract it
+          mkdir temp_extracted
+          tar -xzf ab-manager.tar.gz -C temp_extracted --strip-components=1
+          
+          # Move the contents to our AppDir
+          cp -r temp_extracted/* AppDir/
+          rm -rf temp_extracted ab-manager.tar.gz
+
+      - name: Create AppRun Script
+        run: |
+          # AB Download Manager usually comes with its own runtime in the 'bin' folder
+          cat << 'EOF' > AppDir/AppRun
+          #!/bin/bash
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          
+          # Navigate to the internal bin directory where the executable lives
+          # The binary name is usually 'ab-download-manager'
+          exec "$HERE/bin/ab-download-manager" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+
+      - name: Setup Metadata & Icon
+        run: |
+          # Create the Desktop entry
+          cat << 'EOF' > AppDir/ab-download-manager.desktop
+          [Desktop Entry]
+          Type=Application
+          Name=AB Download Manager
+          Comment=A modern download manager for Linux
+          Exec=AppRun
+          Icon=ab-download-manager
+          Categories=Network;FileTransfer;
+          Terminal=false
+          EOF
+          
+          # Try to find the icon in the extracted files or download a fallback
+          find AppDir -name "*.png" -exec cp {} AppDir/ab-download-manager.png \; 2>/dev/null || \
+          wget "https://raw.githubusercontent.com/amir1376/ab-download-manager/main/assets/icon.png" -O AppDir/ab-download-manager.png
+
+      - name: Compile AppImage
+        run: |
+          wget "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool-x86_64.AppImage
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage AppDir AB-Download-Manager-x86_64.AppImage
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AB-Download-Manager-AppImage
+          path: AB-Download-Manager-x86_64.AppImage
