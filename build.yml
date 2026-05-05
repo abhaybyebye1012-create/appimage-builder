@@ -1,0 +1,94 @@
+name: Build Standalone jmkvpropedit AppImage
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfuse2 jq curl wget
+
+      - name: Create AppDir Structure
+        run: |
+          mkdir -p AppDir/usr/bin AppDir/usr/lib AppDir/jre
+
+      - name: Download Latest jmkvpropedit JAR
+        run: |
+          LATEST_URL=$(curl -s https://api.github.com/repos/BrunoReX/jmkvpropedit/releases/latest | jq -r '.assets[] | select(.name | endswith(".jar")) | .browser_download_url')
+          wget "$LATEST_URL" -O AppDir/jmkvpropedit.jar
+
+      - name: Download Portable Linux Java (JRE 17)
+        run: |
+          wget "https://api.adoptium.net/v3/binary/latest/17/ga/linux/x64/jre/hotspot/normal/eclipse" -O jre.tar.gz
+          tar -xzf jre.tar.gz -C AppDir/jre --strip-components=1
+
+      - name: Bundle mkvpropedit (from MKVToolNix)
+        run: |
+          # Scrape the official site for the latest MKVToolNix AppImage release
+          MKV_APPIMAGE=$(curl -s https://mkvtoolnix.download/appimage/ | grep -o 'href="MKVToolNix_GUI-[^"]*-x86_64.AppImage"' | head -n 1 | cut -d '"' -f 2)
+          wget "https://mkvtoolnix.download/appimage/$MKV_APPIMAGE" -O mkvtoolnix.AppImage
+          
+          # Extract the AppImage
+          chmod +x mkvtoolnix.AppImage
+          ./mkvtoolnix.AppImage --appimage-extract
+          
+          # Copy the binary and its required libraries into our AppDir
+          cp squashfs-root/usr/bin/mkvpropedit AppDir/usr/bin/
+          cp -R squashfs-root/usr/lib/* AppDir/usr/lib/
+          
+          # Clean up
+          rm -rf squashfs-root mkvtoolnix.AppImage
+
+      - name: Create Execution Script (AppRun)
+        run: |
+          cat << 'EOF' > AppDir/AppRun
+          #!/bin/bash
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          
+          # Point the system to our bundled Java
+          export JAVA_HOME="$HERE/jre"
+          
+          # Add bundled Java and bundled mkvpropedit to the system PATH
+          export PATH="$HERE/usr/bin:$JAVA_HOME/bin:$PATH"
+          
+          # Point the system to the bundled MKVToolNix libraries
+          export LD_LIBRARY_PATH="$HERE/usr/lib:$LD_LIBRARY_PATH"
+          
+          # Launch the GUI
+          exec java -jar "$HERE/jmkvpropedit.jar" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+
+      - name: Create Linux Desktop Shortcut Data
+        run: |
+          cat << 'EOF' > AppDir/jmkvpropedit.desktop
+          [Desktop Entry]
+          Type=Application
+          Name=jmkvpropedit
+          Comment=Batch GUI for mkvpropedit (Standalone)
+          Exec=AppRun
+          Icon=jmkvpropedit
+          Categories=AudioVideo;
+          Terminal=false
+          EOF
+
+      - name: Download App Icon
+        run: |
+          wget "https://raw.githubusercontent.com/jlesage/docker-templates/master/jlesage/images/jmkvpropedit-icon.png" -O AppDir/jmkvpropedit.png
+
+      - name: Compile the Final AppImage
+        run: |
+          wget "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool-x86_64.AppImage
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage AppDir jmkvpropedit-Standalone-x86_64.AppImage
+
+      - name: Upload Final AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: jmkvpropedit-Standalone-AppImage
+          path: jmkvpropedit-Standalone-x86_64.AppImage
